@@ -15,7 +15,7 @@ from open_webui.env import (
     DATABASE_POOL_TIMEOUT,
 )
 from peewee_migrate import Router
-from sqlalchemy import Dialect, create_engine, MetaData, types
+from sqlalchemy import Dialect, create_engine, event, MetaData, text, types
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import QueuePool, NullPool
@@ -97,9 +97,17 @@ else:
         )
 
 
+def set_tenant_at_transaction_start(engine, transaction, connection):
+    """Sets the tenant_id after beginning a transaction."""
+    connection.execute(text("SET LOCAL app.tenant_id = :tenant_id;"), dict(tenant_id='notenant'))
+
+
 SessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=engine, expire_on_commit=False
 )
+
+event.listen(SessionLocal, "after_begin", set_tenant_at_transaction_start)
+
 metadata_obj = MetaData(schema=DATABASE_SCHEMA)
 Base = declarative_base(metadata=metadata_obj)
 Session = scoped_session(SessionLocal)
