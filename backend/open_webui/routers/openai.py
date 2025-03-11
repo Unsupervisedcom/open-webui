@@ -103,10 +103,13 @@ def openai_o1_o3_handler(payload):
     # For newer o1/o3 models, replace "system" with "developer".
     if payload["messages"][0]["role"] == "system":
         model_lower = payload["model"].lower()
-        if model_lower.startswith("o1-mini") or model_lower.startswith("o1-preview"):
-            payload["messages"][0]["role"] = "user"
-        else:
-            payload["messages"][0]["role"] = "developer"
+        role = "user" if model_lower.startswith("o1-mini") or model_lower.startswith("o1-preview") else "developer"
+        payload["messages"][0]["role"] = role
+    else:
+        role = payload["messages"][0]["role"]
+
+    # Fix: o1 and o3 do not format markdown by default, so it must be enabled.
+    payload["messages"].insert(0, {"role": role, "content": "Formatting re-enabled"})
 
     return payload
 
@@ -192,7 +195,7 @@ async def speech(request: Request, user=Depends(get_verified_user)):
         body = await request.body()
         name = hashlib.sha256(body).hexdigest()
 
-        SPEECH_CACHE_DIR = CACHE_DIR / "audio" / "speech"
+        SPEECH_CACHE_DIR = Path(CACHE_DIR).joinpath("./audio/speech/")
         SPEECH_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         file_path = SPEECH_CACHE_DIR.joinpath(f"{name}.mp3")
         file_body_path = SPEECH_CACHE_DIR.joinpath(f"{name}.json")
