@@ -1,11 +1,20 @@
 import json
 from pathlib import Path
+from sqlalchemy import event, text
+from open_webui.internal.db import SessionLocal
+
 from open_webui.models.users import Users
 from open_webui.models.functions import (
     FunctionForm,
     FunctionMeta,
     Functions
 )
+
+def set_tenant_at_transaction_start(engine, transaction, connection):
+    """Sets the tenant_id after beginning a transaction."""
+    connection.execute(text("SET LOCAL app.tenant_id = :tenant_id;"), dict(tenant_id='global_tenant'))
+
+event.listen(SessionLocal, "after_begin", set_tenant_at_transaction_start)
 
 def main():
     print("Running installation script...")
